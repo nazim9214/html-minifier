@@ -191,5 +191,14 @@
             Assert.That(minifiedHtml, Is.EqualTo(expectedResult));
         }
 
+        [Test]
+        public void TestCommentsRemove()
+        {
+            string expected = DataHelpers.CommentsRemoveResult;
+
+            string minifiedHtml = StreamReaderExtension.MinifyHtmlCode(DataHelpers.CommentsRemoveInput, noFeatures);
+            Assert.That(minifiedHtml, Is.EqualTo(expected));
+        }
+
     }
 }

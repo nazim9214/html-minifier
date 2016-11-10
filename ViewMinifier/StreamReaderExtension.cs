@@ -1,6 +1,7 @@
 ﻿using System;
 using System.IO;
 using System.Collections.Generic;
+using System.Text;
 using System.Text.RegularExpressions;
 
 namespace HtmlMinifier
@@ -26,16 +27,30 @@ namespace HtmlMinifier
         /// <returns>The minified HTML code.</returns>
         public static string MinifyHtmlCode(string htmlCode, Features features)
         {
-            string contents;
+            string contents = htmlCode;
+            List<string> specialBlocks = new List<string>();
+            foreach (Match match in Regex.Matches(contents, @"^\s*(@using|@model|@inherits)(?!.*\().*$", RegexOptions.Multiline))
+            {
+                string value = match.Value.Trim();
+                if (value.StartsWith("@model"))
+                {
+                    specialBlocks.Insert(0, value);
+                }
+                else
+                {
+                    specialBlocks.Add(value);
+                }
+            }
+            contents = Regex.Replace(htmlCode, @"^\s*(@using|@model|@inherits)(?!.*\().*$", "", RegexOptions.Multiline);
 
             // Minify the contents
-            contents = MinifyHtml(htmlCode, features);
+            contents = MinifyHtml(contents, features);
 
             // Ensure that the max length is less than 65K characters
             contents = EnsureMaxLength(contents, features);
-
-            // Re-add the @model declaration
-            contents = ReArrangeDeclarations(contents);
+            string declarationsBlock = string.Join(Environment.NewLine, specialBlocks);
+            if (!string.IsNullOrEmpty(declarationsBlock)) declarationsBlock += Environment.NewLine;
+            contents = contents.Insert(0, declarationsBlock);
 
             return contents;
         }
@@ -142,11 +157,11 @@ namespace HtmlMinifier
                 htmlContents = RemoveJavaScriptComments(htmlContents);
             }
 
+            // Replace line comments
+            htmlContents = Regex.Replace(htmlContents, @"((\/\/[\w\s\.]+$)|^\s*\/\/.*$|(?<=;)\s*\/\/.*$)", "", RegexOptions.Multiline);
+
             // Minify the string
             htmlContents = Regex.Replace(htmlContents, @"/\*([^*]|[\r\n]|(\*+([^*/]|[\r\n])))*\*+/", "");
-
-            // Replace line comments
-            htmlContents = Regex.Replace(htmlContents, @"// (.*?)\r?\n", "", RegexOptions.Singleline);
 
             // Replace spaces between quotes
             htmlContents = Regex.Replace(htmlContents, @"\s+", " ");
